@@ -1,0 +1,4 @@
+Available models:
+* grok-code-fast-1
+* grok-4.6 (default)
+* grok-4.6-mini

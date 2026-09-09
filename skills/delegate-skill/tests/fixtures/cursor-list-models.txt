@@ -1,0 +1,13 @@
+Available models
+
+auto - Auto (default)
+gpt-5.3-codex-low - Codex 5.3 Low
+gpt-5.3-codex - Codex 5.3
+gpt-5.3-codex-high - Codex 5.3 High
+gpt-5.3-codex-xhigh - Codex 5.3 Extra High
+gpt-5.2 - GPT-5.2
+composer-2.5 - Composer 2.5
+claude-opus-5-thinking-high - Claude Opus 5 1M Thinking
+claude-sonnet-5-thinking-xhigh - Claude Sonnet 5 1M Extra High Thinking
+
+Tip: pass --model <name> to select one for this run

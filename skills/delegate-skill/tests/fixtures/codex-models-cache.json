@@ -1,0 +1,62 @@
+{
+  "fetched_at": "2026-09-09T20:55:04.954840Z",
+  "etag": "W/\"fixture\"",
+  "client_version": "0.147.0",
+  "models": [
+    {
+      "slug": "gpt-6-astra",
+      "display_name": "GPT-6-Astra",
+      "description": "Our most capable model for complex, demanding work.",
+      "default_reasoning_level": "low",
+      "supported_reasoning_levels": [
+        { "effort": "low", "description": "Fast responses with lighter reasoning" },
+        { "effort": "medium", "description": "Balances speed and reasoning depth" },
+        { "effort": "high", "description": "Greater reasoning depth for complex problems" },
+        { "effort": "xhigh", "description": "Extra high reasoning depth" },
+        { "effort": "max", "description": "Maximum reasoning depth" }
+      ],
+      "visibility": "list",
+      "context_window": 400000
+    },
+    {
+      "slug": "gpt-reserve",
+      "display_name": "Reserved",
+      "description": "Internal capacity model.",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        { "effort": "low" },
+        { "effort": "medium" },
+        { "effort": "high" }
+      ],
+      "visibility": "hide",
+      "context_window": 400000
+    },
+    {
+      "slug": "gpt-5.5",
+      "display_name": "GPT-5.5",
+      "description": "Previous generation.",
+      "default_reasoning_level": "medium",
+      "supported_reasoning_levels": [
+        { "effort": "low" },
+        { "effort": "medium" },
+        { "effort": "high" },
+        { "effort": "xhigh" }
+      ],
+      "visibility": "list",
+      "context_window": 272000
+    },
+    {
+      "slug": "gpt-5.4-mini",
+      "display_name": "GPT-5.4 Mini",
+      "description": "A model with no reasoning levels of its own.",
+      "default_reasoning_level": null,
+      "supported_reasoning_levels": [],
+      "visibility": "list",
+      "context_window": 128000
+    },
+    {
+      "display_name": "Broken entry with no slug",
+      "visibility": "list"
+    }
+  ]
+}
