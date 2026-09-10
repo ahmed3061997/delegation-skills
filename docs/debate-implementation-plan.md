@@ -49,4 +49,5 @@ Research should test the provisional verdict, including evidence against it. A s
 The implementation is in `skills/debate/`: `SKILL.md`, focused workflow/evidence/protocol references,
 `scripts/protocol.mjs`, `scripts/debate.mjs`, and a dependency-free test suite. The CLI delegates through
 `skills/delegate/scripts/dispatch.mjs`, preserving its verified adapters and `delegate.run.v1`
-result contract. Installation is unchanged; the plugin bundles both skills.
+result contract. Installation uses the Skills CLI; installing both `delegate` and `debate` together
+keeps the debate helper's sibling dispatch dependency available.

@@ -43,7 +43,8 @@ First release.
 - **Tests**: five suites, no dependencies and no network. Dispatch is exercised against fake agent
   binaries on a throwaway PATH, covering cancellation, watchdog timeouts, non-zero exits, malformed
   events, paths containing spaces, and partial-artifact preservation.
-- **Packaging**: plugin and marketplace manifests, `install.sh`, and `verify.sh`.
+- **Packaging**: a repository layout compatible with the Skills CLI, with both skills discoverable
+  under `skills/`.
 
 ### Known limits
 

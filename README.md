@@ -36,43 +36,13 @@ Add `--global` (`-g`) for a user-wide install, or `--all` to install every skill
 agents. The `debate` skill depends on the bundled `delegate` skill for its verified CLI dispatch
 engine, so install both together.
 
-### Into your skills directory (recommended for local use)
+The CLI installs the skill files and supporting references/scripts into the selected agent's normal
+skills directory. Use `--global` (`-g`) for a user-wide install, or omit it for a project-scoped
+install. List the available skills first with `--list`:
 
 ```bash
-./install.sh
+npx skills add <owner>/<repo> --list
 ```
-
-Symlinks the skill into `${CLAUDE_CONFIG_DIR:-~/.claude}/skills/delegate`, so edits in this
-repository take effect on the next session. Use `--copy` for a frozen snapshot, `--target <dir>` for
-somewhere else, and `--uninstall` to remove it. It never overwrites or deletes anything at the
-destination that it did not put there.
-
-Restart Claude Code, then confirm what it can reach:
-
-```bash
-node ~/.claude/skills/delegate/scripts/catalog.mjs --summary
-```
-
-### As a Claude Code plugin
-
-From a local checkout:
-
-```bash
-claude plugin marketplace add .
-claude plugin install delegate@delegation-skills
-```
-
-Once this repository is published, the same works from GitHub:
-
-```bash
-claude plugin marketplace add <owner>/<repo>
-claude plugin install delegate@delegation-skills
-```
-
-### By hand
-
-Copy `skills/delegate/` anywhere your agent loads skills from. It is self-contained: no
-dependencies, no install step, no manifest of its own.
 
 ## Using delegate
 
@@ -132,50 +102,32 @@ documentation alone would risk a wrong flag silently changing the permission pro
 under — see [the ADR](skills/delegate/references/adr-0001-architecture.md) for the reasoning
 and the steps to add one.
 
-## Verify
-
-```bash
-./verify.sh
-```
-
-Runs the skill's test suite, validates both manifests and the skill's frontmatter with
-`claude plugin validate --strict`, checks that the version agrees everywhere it appears, and exercises
-the installer — including that it refuses to clobber a directory it did not create.
-
-The tests alone:
+## Test
 
 ```bash
 node skills/delegate/tests/run-tests.mjs
+node skills/debate/tests/run-tests.mjs
 ```
 
-No dependencies and no network. Dispatch is exercised end to end against fake agent binaries on a
-throwaway PATH — real processes, real stdin, real signals, real exit codes, and no paid runs.
+Both suites use Node built-ins only. The delegate suite exercises discovery, selection, dispatch,
+process lifecycle, and review against fake agent binaries; the debate suite covers packet boundaries,
+evidence validation, brief structure, and semantic review.
 
 ## Layout
 
 ```
-.claude-plugin/          plugin and marketplace manifests
-skills/delegate/   delegation skill and execution engine
+skills/delegate/         delegation skill and execution engine
   SKILL.md               the delegation loop
   references/            selection, briefs, dispatch, review, ADR, glossary
   scripts/               registry, catalog, select, adapters, dispatch, review
   tests/                 suites, fixtures, and fake agent CLIs
-skills/debate/     two-pass technical debate skill
+skills/debate/           two-pass technical debate skill
   SKILL.md               the debate workflow
   references/            workflow, evidence policy, and protocol
   scripts/               bounded packets, briefs, dispatch, and review
   tests/                 dependency-free protocol and workflow tests
-docs/                    the implementation plan this was built from
-install.sh               local install / uninstall
-verify.sh                tests + manifest validation + version consistency
+docs/                     implementation plans, ADRs, and glossary
 ```
-
-## Publishing
-
-Before pushing this anywhere public, fill in the two fields left out on purpose rather than guessed:
-add `homepage` and `repository` to `.claude-plugin/plugin.json`, and a `homepage` to the plugin entry
-in `.claude-plugin/marketplace.json`. Then `claude plugin tag` cuts a release tag and checks that the
-manifests agree.
 
 ## License
 
