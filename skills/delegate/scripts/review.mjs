@@ -22,6 +22,9 @@
  *                     Repeatable. Discover the real commands from the repo
  *                     (CLAUDE.md / AGENTS.md / Makefile / package.json) — do not
  *                     assume them.
+ *   --owned <path>    A path this run was supposed to stay inside. Repeatable.
+ *                     Changes outside the declared set become findings; nothing
+ *                     is prevented, and nothing is reverted.
  *   --timeout <dur>   Per-check watchdog (default: 15m). h/m/s.
  *   --json            Print the review block as JSON instead of a summary.
  *   -h, --help
@@ -40,6 +43,8 @@ import { fileURLToPath } from "node:url";
 
 import { readJsonOrNull, writeJsonAtomic } from "./lib/atomic.mjs";
 import { parseDuration } from "./lib/duration.mjs";
+import { porcelainPath } from "./lib/exec.mjs";
+import { unownedChanges } from "./lib/ownership.mjs";
 import { RUN_SCHEMA } from "./dispatch.mjs";
 
 export const REVIEW_SCHEMA = "delegate.review.v1";
@@ -52,7 +57,7 @@ function fail(message) {
 }
 
 function parseArgs(argv) {
-  const opts = { result: null, checks: [], timeout: DEFAULT_CHECK_TIMEOUT, json: false };
+  const opts = { result: null, checks: [], owned: [], timeout: DEFAULT_CHECK_TIMEOUT, json: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     const next = () => {
@@ -69,6 +74,7 @@ function parseArgs(argv) {
         break;
       case "--result": opts.result = next(); break;
       case "--check": opts.checks.push(next()); break;
+      case "--owned": opts.owned.push(next()); break;
       case "--timeout": opts.timeout = next(); break;
       case "--json": opts.json = true; break;
       default: fail(`unknown option: ${arg}`);
@@ -88,6 +94,8 @@ Usage:
 Options:
   --result <file>   result.json from dispatch.mjs (required)
   --check <cmd>     project check to re-run in the run's workdir (repeatable)
+  --owned <path>    path the run was supposed to stay inside (repeatable);
+                    changes outside the set are reported, never prevented
   --timeout <dur>   per-check watchdog, default ${DEFAULT_CHECK_TIMEOUT}
   --json            print the review block as JSON
 
@@ -103,7 +111,7 @@ function tail(text) {
     .slice(-OUTPUT_TAIL_LINES);
 }
 
-function runCheck(command, cwd, timeoutMs) {
+export function runCheck(command, cwd, timeoutMs) {
   const started = Date.now();
   const result = spawnSync(command, {
     cwd,
@@ -125,10 +133,41 @@ function runCheck(command, cwd, timeoutMs) {
 }
 
 /**
+ * Changes on paths the run never declared.
+ *
+ * Nothing here prevents a write; the declaration is a claim, and this is the
+ * check on it. `exempt` carries paths the user had already dirtied, which are
+ * not the agent's to answer for.
+ */
+export function ownershipFindings({ changedPaths, ownedPaths, exempt = [] }) {
+  if (!ownedPaths || !ownedPaths.length) return [];
+  const strayed = unownedChanges(changedPaths, ownedPaths, exempt);
+  if (!strayed.length) return [];
+  return [
+    {
+      kind: "ownership-violation",
+      severity: "medium",
+      detail: `${strayed.length} path(s) changed outside the declared ownership (${ownedPaths.join(", ")})`,
+      paths: strayed,
+    },
+  ];
+}
+
+/**
  * Findings that come from the run record itself, before any check is run.
  * These are the things worth surfacing whether or not the tests pass.
+ *
+ * @param {object} run the delegate.run.v1 record.
+ * @param {object} [options]
+ * @param {string[]|null} [options.userDirtyPaths] paths the *user* had already
+ *        modified. In a batch, a run from subtask 2 onwards finds its
+ *        predecessors' edits in the tree and would otherwise report all of them
+ *        as unattributable; only the user's own work belongs in that finding.
+ * @param {string[]|null} [options.ownedPaths] the paths this run declared.
+ * @param {string[]|null} [options.changedPaths] what actually changed, when the
+ *        caller can attribute it better than the run record can.
  */
-export function findingsFromRun(run) {
+export function findingsFromRun(run, { userDirtyPaths = null, ownedPaths = null, changedPaths = null } = {}) {
   const findings = [];
   if (run.status !== "completed") {
     findings.push({
@@ -145,31 +184,49 @@ export function findingsFromRun(run) {
       detail: "git could not report on the working directory, so no change can be attributed to this run",
     });
   } else {
-    if (changes.attributionUncertain) {
+    // In a batch, "already modified" is mostly the previous subtask's work,
+    // which is attributable and expected. Only what the user had dirty before
+    // any of it started is genuinely unattributable.
+    const alsoModified =
+      userDirtyPaths === null
+        ? changes.alsoModified
+        : changes.alsoModified.filter((line) => userDirtyPaths.includes(porcelainPath(line)));
+    if (alsoModified.length) {
       findings.push({
         kind: "attribution",
         severity: "medium",
-        detail: `${changes.alsoModified.length} path(s) were already modified before the run; review them separately from the agent's work`,
-        paths: changes.alsoModified,
+        detail: `${alsoModified.length} path(s) were already modified before the run; review them separately from the agent's work`,
+        paths: alsoModified,
       });
     }
-    if (!changes.created.length && !run.requested?.readOnly) {
+    // What this run changed. `changedPaths` wins when the caller knows better:
+    // inside a batch, editing a file a previous subtask created is this run's
+    // work, even though the run record can only see "the path was already there".
+    const attributed = changedPaths ?? changes.created;
+    if (!attributed.length && !run.requested?.readOnly) {
       findings.push({
         kind: "no-changes",
         severity: "high",
         detail: "a write-capable run produced no new working-tree changes — check whether the task was actually done",
       });
     }
-    if (changes.created.length && run.requested?.readOnly) {
+    if (attributed.length && run.requested?.readOnly) {
       // Read-only is a mode the agent enforces; this is the tripwire, not the
       // boundary. A hit here means the run cannot be trusted as read-only.
       findings.push({
         kind: "read-only-violation",
         severity: "high",
-        detail: `a read-only run left ${changes.created.length} new change(s) in the working tree`,
-        paths: changes.created,
+        detail: `a read-only run left ${attributed.length} new change(s) in the working tree`,
+        paths: attributed,
       });
     }
+    findings.push(
+      ...ownershipFindings({
+        changedPaths: changedPaths ?? changes.created.map(porcelainPath),
+        ownedPaths,
+        exempt: userDirtyPaths ?? changes.preexisting?.map(porcelainPath) ?? [],
+      }),
+    );
   }
   if (run.resolved && run.reportedModel && run.resolved.model && run.reportedModel !== run.resolved.model) {
     findings.push({
@@ -233,7 +290,7 @@ function main() {
 
   const timeoutMs = parseDuration(opts.timeout);
   const checks = opts.checks.map((command) => runCheck(command, run.workdir, timeoutMs));
-  const findings = findingsFromRun(run);
+  const findings = findingsFromRun(run, { ownedPaths: opts.owned.length ? opts.owned : null });
   for (const check of checks.filter((candidate) => candidate.status !== "passed")) {
     findings.push({
       kind: "check-failed",

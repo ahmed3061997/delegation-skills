@@ -30,6 +30,7 @@ findings drawn from the run record itself:
 | `model-mismatch` | The agent reported running a different model than the one selected. |
 | `unverified-effort` | The effort could not be verified, so the agent may have ignored it. |
 | `selection-warning` | A manual model id, unknown authentication, or a stale catalog. |
+| `ownership-violation` | With `--owned`, a change landed on a path the run never declared. |
 
 Exit 0 means every check passed and nothing was flagged. Exit 1 means there is something to read.
 
@@ -55,6 +56,21 @@ Then, depending on the change:
 
 If you have code-review skills installed, run them on the diff now. This skill produces work; those
 skills judge it.
+
+## Reviewing a batch
+
+When the work was split across several subtasks, the review moves to the end and gains a second
+layer. `recap.mjs` does the mechanical part — see [large-tasks.md](large-tasks.md) — and three things
+change for you:
+
+1. **The whole-tree checks are the ones that count.** Nothing was checked while the batch ran,
+   deliberately: a suite run against a tree three subtasks short tests a tree nobody asked for.
+2. **Read the seams, not just the diffs.** Two subtasks can each come back with no findings and still
+   contradict each other. Start from the `shared-path` finding — a file more than one subtask
+   changed — then look for duplicated helpers, an interface one defined and another ignored, and the
+   gap neither of them covered.
+3. **Six claims are not evidence.** The recap keeps each subtask's *reported* line apart from what
+   was *checked*, and your report to the user should keep them apart too.
 
 ## Where this skill's authority stops
 

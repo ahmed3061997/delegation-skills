@@ -94,6 +94,25 @@ Same constraints as before: do not commit, do not touch src/io/.
 Do not restate the whole original brief. The session already has it, and repeating it invites the
 agent to redo work it has already done.
 
+## Subtask briefs
+
+Inside a batch ([large-tasks.md](large-tasks.md)), `batch.mjs` composes each subtask's brief from the
+plan, and it is a brief like any other: one task, self-contained, do not commit. Three things differ.
+
+- **Ownership is a constraint in the brief.** "Do not change files outside `src/cli/flags.ts`.
+  Another subtask owns them. If this task cannot be done without touching something else, stop and
+  say so in your report." That last clause matters more than the prohibition: the report is how a
+  bad split becomes visible.
+- **Checks are not this subtask's job.** The project's suite runs once, over the whole tree, after
+  the batch. The brief says so, and tells the agent to expect failures caused by work later subtasks
+  have not done yet — and to report them rather than chase them.
+- **Predecessors are named, never quoted.** A subtask sees a one-line list of the subtasks that
+  already ran, because it is about to read a tree they changed and pretending otherwise makes that
+  tree inexplicable. It never sees their briefs; that would be two tasks in one brief again.
+
+Set `brief` on a subtask to replace composition entirely when the task needs something the template
+cannot express.
+
 ## Read-only briefs
 
 With `--read-only`, the deliverable is the final message rather than a diff. Say so, and say what
