@@ -1,5 +1,5 @@
 #!/bin/sh
-# delegate-skill · install.sh
+# delegate · install.sh
 #
 # Install the skill into a Claude Code skills directory, where it auto-loads on
 # the next session.
@@ -25,7 +25,7 @@
 
 set -eu
 
-SKILL_NAME="delegate-skill"
+SKILL_NAME="delegate"
 REPO_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SOURCE_DIR="$REPO_DIR/skills/$SKILL_NAME"
 

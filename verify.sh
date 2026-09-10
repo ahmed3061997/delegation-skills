@@ -1,5 +1,5 @@
 #!/bin/sh
-# delegate-skill · verify.sh
+# delegate · verify.sh
 #
 # Check the package before installing or publishing it:
 #   1. the skill's own test suite
@@ -15,7 +15,7 @@
 set -eu
 
 REPO_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-SKILL_DIR="$REPO_DIR/skills/delegate-skill"
+SKILL_DIR="$REPO_DIR/skills/delegate"
 FAILED=0
 
 case "${1:-}" in
@@ -36,6 +36,13 @@ if node "$SKILL_DIR/tests/run-tests.mjs" | tail -1; then
   pass "test suite"
 else
   fail "test suite"
+fi
+
+DEBATE_DIR="$REPO_DIR/skills/debate"
+if node "$DEBATE_DIR/tests/run-tests.mjs" | tail -1; then
+  pass "debate test suite"
+else
+  fail "debate test suite"
 fi
 
 step "manifests"
@@ -75,7 +82,7 @@ const read = (...parts) => readFileSync(join(root, ...parts), "utf8");
 const found = {
   "plugin.json": JSON.parse(read(".claude-plugin", "plugin.json")).version,
   "marketplace.json": JSON.parse(read(".claude-plugin", "marketplace.json")).plugins[0].version,
-  "SKILL.md": (/^\s+version:\s*(\S+)\s*$/m.exec(read("skills", "delegate-skill", "SKILL.md")) || [])[1],
+  "SKILL.md": (/^\s+version:\s*(\S+)\s*$/m.exec(read("skills", "delegate", "SKILL.md")) || [])[1],
   "CHANGELOG.md": (/^##\s+(\d+\.\d+\.\d+)/m.exec(read("CHANGELOG.md")) || [])[1],
 };
 const versions = new Set(Object.values(found));
@@ -102,7 +109,7 @@ else
   fail "--dry-run changed something"
 fi
 
-if "$REPO_DIR/install.sh" --target "$SCRATCH" >/dev/null && [ -L "$SCRATCH/delegate-skill" ]; then
+if "$REPO_DIR/install.sh" --target "$SCRATCH" >/dev/null && [ -L "$SCRATCH/delegate" ]; then
   pass "install creates the symlink"
 else
   fail "install did not create the symlink"
@@ -114,7 +121,7 @@ else
   pass "refuses to overwrite without --force"
 fi
 
-if "$REPO_DIR/install.sh" --target "$SCRATCH" --uninstall >/dev/null && [ ! -e "$SCRATCH/delegate-skill" ]; then
+if "$REPO_DIR/install.sh" --target "$SCRATCH" --uninstall >/dev/null && [ ! -e "$SCRATCH/delegate" ]; then
   pass "uninstall removes it"
 else
   fail "uninstall left something behind"
@@ -122,11 +129,11 @@ fi
 
 # The guard that matters most: a directory this script did not create must
 # survive even --force.
-mkdir -p -- "$SCRATCH/delegate-skill"
-: > "$SCRATCH/delegate-skill/someone-elses-file"
+mkdir -p -- "$SCRATCH/delegate"
+: > "$SCRATCH/delegate/someone-elses-file"
 if "$REPO_DIR/install.sh" --target "$SCRATCH" --force >/dev/null 2>&1; then
   fail "--force overwrote a directory it did not install"
-elif [ -f "$SCRATCH/delegate-skill/someone-elses-file" ]; then
+elif [ -f "$SCRATCH/delegate/someone-elses-file" ]; then
   pass "--force refuses a foreign directory and leaves it intact"
 else
   fail "a foreign directory was damaged"

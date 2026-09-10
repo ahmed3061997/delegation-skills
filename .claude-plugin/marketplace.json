@@ -1,17 +1,17 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "delegation-skills",
-  "description": "Skills for handing a bounded task to another agent CLI and reviewing what comes back",
+  "description": "Skills for delegating bounded work and running evidence-informed technical debates with installed agent CLIs",
   "owner": {
     "name": "Ahmed Hussien",
     "email": "ahmedcode306@gmail.com"
   },
   "plugins": [
     {
-      "name": "delegate-skill",
-      "description": "Delegate a bounded task to an installed agent CLI of the user's choosing — Claude Code, Codex, OpenCode, or Cursor Agent — after asking which agent, then which model, then how much reasoning effort. Discovers what is installed, offers only real choices, dispatches with an explicit permission profile, and reports what came back without committing.",
+      "name": "delegate",
+      "description": "Delegate bounded tasks or run evidence-informed technical debates with installed agent CLIs — Claude Code, Codex, OpenCode, or Cursor Agent — using verified selections, explicit read-only or write profiles, and structured results without committing.",
       "source": "./",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "development",
       "tags": [
         "delegation",
@@ -19,7 +19,9 @@
         "claude-code",
         "codex",
         "opencode",
-        "cursor"
+        "cursor",
+        "technical-decision",
+        "debate"
       ]
     }
   ]
