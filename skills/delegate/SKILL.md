@@ -5,7 +5,10 @@ description: >-
   OpenCode, or Cursor Agent — after asking which agent, then which model, then how much reasoning
   effort. Use when the user wants to hand implementation work to another agent but has not named
   one, or asks which agents are available, or says things like "delegate this", "have another agent
-  do X", "run this through an agent", or "pick an agent for this". Discovers what is installed,
+  do X", "run this through an agent", or "pick an agent for this". Also use when the task is too
+  large for one run and the user wants it broken into smaller delegated pieces — "split this up",
+  "break this into subtasks", "delegate this in parts, then summarise" — which it plans as an ordered
+  sequence, runs one subtask at a time, and reviews together at the end. Discovers what is installed,
   offers only real choices, dispatches with an explicit permission profile, and reports what came
   back. DO NOT USE when the user names a specific agent that has its own dedicated delegation skill,
   when the task is small enough to do inline, or when they want the code written directly.
@@ -15,7 +18,7 @@ compatibility: >-
   supported agent CLI must be installed and authenticated. The orchestrating agent needs to run
   shell commands and read files; nothing here is specific to one host.
 metadata:
-  version: 1.1.0
+  version: 1.2.0
 ---
 
 # Delegate Skill
@@ -34,6 +37,13 @@ after a refusal, and it does not quietly substitute a different agent, model, or
 was rejected. Every one of those is reported to you, and the decision stays yours.
 
 ## The loop
+
+### 0. One run, or several?
+
+Most tasks are one run: continue below. A task too large for one run gets split into subtasks that
+are dispatched one at a time and reviewed together at the end —
+[references/large-tasks.md](references/large-tasks.md) has that path, and it starts by testing
+whether splitting is warranted at all. A split you do not need costs more than a run you do.
 
 ### 1. See what is actually available
 
@@ -118,6 +128,33 @@ Tell the user what the agent did, what the checks said, and what you found. Leav
 Committing, reverting, and asking for another pass are all the user's calls — this skill deliberately
 makes none of them for you.
 
+## When one task is too large for one run
+
+Split it, run the pieces in sequence, review them together:
+
+```bash
+node "<skill-dir>/scripts/plan.mjs"  template --out plan.json      # then write the subtasks
+node "<skill-dir>/scripts/plan.mjs"  show --plan plan.json         # the table the user approves
+node "<skill-dir>/scripts/batch.mjs" run --plan plan.json --cd /path/to/repo --yes
+node "<skill-dir>/scripts/recap.mjs" --batch <out-dir>/batch.json
+```
+
+Each subtask is one responsibility, bounded by a seam the code already has, and dispatched as an
+ordinary run. Four rules hold the mode together:
+
+- **The user approves the sequence first.** Ordered, described, with an estimate per subtask and a
+  total that is a sum — because they run back to back. `--yes` is that approval; without it nothing
+  is dispatched.
+- **One agent at a time**, in the user's own working tree. No worktrees, no patches, no merge. Each
+  subtask reads what its predecessors left behind.
+- **No check runs until the last subtask has exited.** A suite run against a half-built tree tests a
+  tree nobody asked for, so the project's checks belong to the plan and run once, in the recap.
+- **A failure stops that line of work, not the batch.** Dependents are `skipped`, independent
+  subtasks continue, and nothing is retried.
+
+Full guidance — when *not* to split, how to size a subtask, where estimates come from, and what the
+recap must say: [references/large-tasks.md](references/large-tasks.md).
+
 ## Continuing a run
 
 `result.json` carries a `sessionId`. To send a follow-up, dispatch again with `--session <id>` and a
@@ -141,9 +178,13 @@ throwaway PATH — real processes, real stdin, real signals, real exit codes, no
   contract, and embedding the project's real check commands.
 - [references/dispatch-and-results.md](references/dispatch-and-results.md) — dispatcher flags, the
   `delegate.run.v1` contract, statuses, exit codes, and recovery.
-- [references/review-and-report.md](references/review-and-report.md) — the review checklist and where
-  the skill's authority stops.
+- [references/review-and-report.md](references/review-and-report.md) — the review checklist, the
+  batch review, and where the skill's authority stops.
+- [references/large-tasks.md](references/large-tasks.md) — splitting by responsibility, the ordered
+  plan, the approval table and its estimates, serial dispatch, and the recap.
 - [references/adr-0001-architecture.md](references/adr-0001-architecture.md) — the architecture and
   the decisions behind it, including why ten agents are discovery-only.
+- [references/adr-0002-decomposition.md](references/adr-0002-decomposition.md) — serial dispatch,
+  deferred review, and the concurrent-worktree design that was rejected.
 - [references/glossary.md](references/glossary.md) — agent, adapter, model, effort, catalog, brief,
-  run, review.
+  run, review, plus plan, subtask, batch, owned path, ledger, and recap.

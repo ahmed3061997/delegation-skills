@@ -1,7 +1,8 @@
 # Glossary
 
-Eight terms carry the whole design. They are used in exactly these senses everywhere in this skill —
-in the code, the schemas, and the prompts shown to the user.
+Eight terms carry the single-task design, and six more carry the large-task one. They are used in
+exactly these senses everywhere in this skill — in the code, the schemas, and the prompts shown to
+the user.
 
 ### Agent
 
@@ -87,6 +88,59 @@ brief, and recording findings. Schema `delegate.review.v1`, written into the run
 
 A review **reports and stops**. Its verdict is `findings-reported` or `no-findings` — never
 `approved`, because approving is a decision, and the decision is the user's.
+
+---
+
+## When one task is too large for one run
+
+### Plan
+
+An **ordered** list of subtasks, with a budget, batch-level checks, and everything the user needs to
+approve it. Schema `delegate.plan.v1`.
+
+Order is total, because execution is serial. `dependsOn` survives for exactly one purpose: deciding
+what to skip when a prerequisite fails. A dependency that runs later is an error, which is also what
+makes a cycle impossible.
+
+### Subtask
+
+One responsibility, bounded by a seam that already exists in the codebase, briefed and dispatched as
+an ordinary run. It carries a title, a plain-language description the user reads before approving,
+the responsibility it owns, its owned paths, acceptance criteria, and a **size class** (`small`,
+`medium`, `large`) that the estimate comes from.
+
+A subtask's statuses are a run's, plus `skipped` (a declared prerequisite did not complete) and
+`not-started` (the batch halted, ran out of budget, or was cancelled first).
+
+### Batch
+
+One execution of one plan: subtasks dispatched **one at a time**, in order, in the user's own
+working tree. Schema `delegate.batch.v1`, rewritten after every state change.
+
+Exactly one agent process is alive at any moment, and no project check runs until the last one has
+exited. A batch is `completed`, `finished-with-failures`, `halted`, or `cancelled`.
+
+### Owned path
+
+A path a subtask declares it expects to create or modify. It is a **claim, not a boundary**: nothing
+enforces it mid-run, and a later subtask editing an earlier one's file is often correct. The recap
+checks the claim and reports what strayed.
+
+### Ledger
+
+The batch's own change accounting: the tree state before the batch, and before and after each
+subtask. It is what keeps "already there" meaning *the user's work* rather than *the previous
+subtask's* — a distinction a single run cannot make, because from its own point of view every
+predecessor's edit was simply already in the tree.
+
+### Recap
+
+The end-of-batch review and the one report the user reads. Schema `delegate.recap.v1`. Reviews every
+subtask against what it claimed and what it owned, runs the project's checks once over the finished
+tree, reports the seams between subtasks, and names what was not done.
+
+It keeps **reported** and **checked** apart on every line, because aggregating six unverified claims
+produces one large unverified claim, not a verified one.
 
 ---
 

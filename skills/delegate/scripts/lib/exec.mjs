@@ -170,13 +170,29 @@ export function killTree(child, signal = "SIGTERM") {
 }
 
 /**
+ * The path a `git status --porcelain` line refers to.
+ * `XY path` / `XY orig -> path`; after an arrow, the path is the current one.
+ */
+export function porcelainPath(line) {
+  const body = String(line).slice(3).trim();
+  const arrow = body.lastIndexOf(" -> ");
+  const raw = arrow === -1 ? body : body.slice(arrow + 4);
+  return raw.replace(/^"(.*)"$/, "$1");
+}
+
+/**
  * `git status --porcelain` for `cwd`, or null when git cannot report.
  * null is "unknown", never "clean" — the difference decides whether a review
  * can attribute changes at all.
+ *
+ * `untrackedFiles: "all"` adds `-uall`, which lists new files individually
+ * instead of collapsing them into `?? dir/`. A single run does not need the
+ * detail; a batch does, because two subtasks creating files in the same new
+ * directory are otherwise indistinguishable.
  */
-export function gitPorcelain(cwd) {
+export function gitPorcelain(cwd, { untrackedFiles = "normal" } = {}) {
   try {
-    const output = execFileSync("git", ["status", "--porcelain"], {
+    const output = execFileSync("git", ["status", "--porcelain", ...(untrackedFiles === "all" ? ["-uall"] : [])], {
       cwd,
       encoding: "utf8",
       timeout: PROBE_TIMEOUT_MS,

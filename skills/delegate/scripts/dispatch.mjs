@@ -64,7 +64,7 @@ import { EFFORT_TOKEN, SESSION_TOKEN, findAgent, modelPattern } from "./registry
 import { findAdapter } from "./adapters.mjs";
 import { loadCatalog } from "./catalog.mjs";
 import { resolveSelection } from "./select.mjs";
-import { gitPorcelain, killTree, needsWindowsShell } from "./lib/exec.mjs";
+import { gitPorcelain, killTree, needsWindowsShell, porcelainPath } from "./lib/exec.mjs";
 import { parseDuration } from "./lib/duration.mjs";
 import { writeJsonAtomic } from "./lib/atomic.mjs";
 
@@ -177,14 +177,6 @@ function readBrief(opts) {
 // ---------------------------------------------------------------------------
 // Change accounting
 // ---------------------------------------------------------------------------
-
-/** `XY path` / `XY orig -> path`; the path after an arrow is the current one. */
-function porcelainPath(line) {
-  const body = line.slice(3).trim();
-  const arrow = body.lastIndexOf(" -> ");
-  const raw = arrow === -1 ? body : body.slice(arrow + 4);
-  return raw.replace(/^"(.*)"$/, "$1");
-}
 
 /**
  * Compare the working tree before and after the run.

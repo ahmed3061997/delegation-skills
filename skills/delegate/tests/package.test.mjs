@@ -173,6 +173,10 @@ test("nothing in the package makes a network call of its own", () => {
     readFileSync(join(root, "scripts", "dispatch.mjs"), "utf8"),
     readFileSync(join(root, "scripts", "review.mjs"), "utf8"),
     readFileSync(join(root, "scripts", "select.mjs"), "utf8"),
+    readFileSync(join(root, "scripts", "plan.mjs"), "utf8"),
+    readFileSync(join(root, "scripts", "batch.mjs"), "utf8"),
+    readFileSync(join(root, "scripts", "recap.mjs"), "utf8"),
+    readFileSync(join(root, "scripts", "timings.mjs"), "utf8"),
   ].join("\n");
   for (const needle of ["node:http", "node:https", "node:net", "fetch("]) {
     ok(!source.includes(needle), `the package must not reach the network itself, but found ${needle}`);
@@ -231,7 +235,7 @@ test("select.mjs and dispatch.mjs both refuse an unknown agent", () => {
 });
 
 test("every CLI has help and every helper is runnable standalone", () => {
-  for (const script of ["catalog.mjs", "select.mjs", "dispatch.mjs", "review.mjs"]) {
+  for (const script of ["catalog.mjs", "select.mjs", "dispatch.mjs", "review.mjs", "plan.mjs", "batch.mjs", "recap.mjs", "timings.mjs"]) {
     const help = run(script, ["--help"]);
     equal(help.exitCode, 0, `${script} --help`);
     ok(help.stdout.trim().length > 200, `${script} --help should explain itself`);
@@ -246,4 +250,50 @@ test("dispatch.mjs help states that it never commits or retries", () => {
   includes(help, "never commits or pushes");
   includes(help, "never retries with a wider permission profile after a refusal");
   includes(help, "never substitutes a different agent, model, or effort");
+});
+
+test("the batch helpers state the two rules that define the mode", () => {
+  const batch = run("batch.mjs", ["--help"]).stdout.replace(/\s+/g, " ");
+  includes(batch, "One agent process at a time");
+  includes(batch, "No project check runs during the batch");
+  includes(batch, "Never commits, reverts, re-dispatches a failure");
+
+  const recap = run("recap.mjs", ["--help"]).stdout.replace(/\s+/g, " ");
+  includes(recap, "runs the project's checks once over the finished tree");
+  includes(recap, "Never commits, reverts, or re-dispatches");
+});
+
+test("SKILL.md documents the large-task path and its references resolve", () => {
+  includes(skill, "references/large-tasks.md");
+  includes(skill, "plan.mjs");
+  includes(skill, "batch.mjs");
+  includes(skill, "recap.mjs");
+});
+
+test("the glossary defines the batch vocabulary too", () => {
+  const glossary = readFileSync(join(root, "references", "glossary.md"), "utf8");
+  for (const term of ["Plan", "Subtask", "Batch", "Owned path", "Ledger", "Recap"]) {
+    includes(glossary, `### ${term}`, `glossary is missing a definition for ${term}`);
+  }
+});
+
+test("a second ADR records the serial-dispatch decision and what it rejected", () => {
+  const adr = readFileSync(join(root, "references", "adr-0002-decomposition.md"), "utf8");
+  includes(adr, "## Context");
+  includes(adr, "## Decisions");
+  includes(adr, "## Alternatives considered");
+  includes(adr, "Consequence:");
+  includes(adr, "serial");
+});
+
+test("a single dispatch still behaves exactly as it did before batches existed", () => {
+  // The regression guard for the whole feature: nothing added here may change
+  // what one run does, what it writes, or how review reads it.
+  const help = run("dispatch.mjs", ["--help"]);
+  equal(help.exitCode, 0);
+  const source = readFileSync(join(root, "scripts", "dispatch.mjs"), "utf8");
+  ok(!source.includes("batch"), "dispatch.mjs must not know that batches exist");
+  ok(!source.includes("plan.mjs"), "the dispatcher stays the unit, not the sequencer");
+  const review = readFileSync(join(root, "scripts", "review.mjs"), "utf8");
+  ok(review.includes("findingsFromRun(run, {"), "review keeps its single-run entry point");
 });

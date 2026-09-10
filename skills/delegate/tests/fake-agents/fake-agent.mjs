@@ -15,9 +15,16 @@
  *   FAKE_SLEEP_MS    how long the sleep/crash modes stay alive (default 60000)
  *   FAKE_STDIN_OUT   copy the brief received on stdin to this path
  *   FAKE_VERSION     version string to report
+ *   FAKE_TAG         label written into files created by a WRITE: directive
+ *
+ * Two directives can also be given in the brief itself, which is how a batch
+ * test makes each subtask behave differently under one shared environment:
+ *   WRITE: some/path.ts   append a line to that path in the working directory
+ *   FAIL: 3               exit with that code after emitting the usual events
  */
 
-import { readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 
 const argv = process.argv.slice(2);
 const asIndex = argv.indexOf("--as");
@@ -120,6 +127,21 @@ try {
 }
 if (process.env.FAKE_STDIN_OUT) writeFileSync(process.env.FAKE_STDIN_OUT, brief, "utf8");
 
+// A brief line of the form "WRITE: some/path.ts" makes this fake agent edit the
+// working tree, the way a real one would. Batch tests need each subtask to
+// leave a distinct, real change behind so attribution has something to attribute.
+for (const match of brief.matchAll(/^WRITE:\s*(\S+)\s*$/gm)) {
+  const target = join(process.cwd(), match[1]);
+  mkdirSync(dirname(target), { recursive: true });
+  let existing = "";
+  try {
+    existing = readFileSync(target, "utf8");
+  } catch {
+    existing = "";
+  }
+  writeFileSync(target, `${existing}line from ${process.env.FAKE_TAG || "fake-agent"}\n`, "utf8");
+}
+
 const outputFileIndex = args.indexOf("-o");
 const outputFile = outputFileIndex === -1 ? null : args[outputFileIndex + 1];
 const report = `Applied the change described in the brief (${brief.trim().split("\n")[0] ?? ""}).`;
@@ -171,7 +193,8 @@ if (mode === "sleep" || mode === "crash") {
     out("plain progress line, no braces");
   }
   if (outputFile) writeFileSync(outputFile, report, "utf8");
-  const exitCode = Number.parseInt(process.env.FAKE_EXIT || "0", 10);
+  const briefFailure = /^FAIL:\s*(\d+)\s*$/m.exec(brief);
+  const exitCode = briefFailure ? Number.parseInt(briefFailure[1], 10) : Number.parseInt(process.env.FAKE_EXIT || "0", 10);
   if (exitCode !== 0) process.stderr.write(`fake-agent: failing on purpose with exit ${exitCode}\n`);
   process.exit(exitCode);
 }

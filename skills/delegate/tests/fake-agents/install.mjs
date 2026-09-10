@@ -8,6 +8,7 @@
  * shell:true launch path, and the skill's stated support is macOS and Linux.
  */
 
+import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +42,20 @@ export function installFakeAgents(binDir, agents = Object.keys(FAKE_BINARIES)) {
     chmodSync(shim, 0o755);
   }
   return binDir;
+}
+
+/**
+ * Give the throwaway PATH a working git and nothing else.
+ *
+ * Change attribution needs git, but the real PATH holds the user's actual agent
+ * CLIs, which discovery would then find. A shim gives one without the other.
+ */
+export function installGitShim(binDir) {
+  const realGit = execFileSync("/usr/bin/env", ["sh", "-c", "command -v git"], { encoding: "utf8" }).trim();
+  const shim = join(binDir, "git");
+  writeFileSync(shim, `#!/bin/sh\nexec "${realGit}" "$@"\n`, "utf8");
+  chmodSync(shim, 0o755);
+  return shim;
 }
 
 /**
